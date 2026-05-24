@@ -17,7 +17,7 @@ from aiosmtpd.handlers import AsyncMessage
 
 # ── Configuration (override via environment variables) ────────────────────────
 HOST        = os.environ.get("SMTP_HOST",    "0.0.0.0")
-PORT        = int(os.environ.get("SMTP_PORT", 465))
+PORT        = int(os.environ.get("SMTP_PORT", 8025))
 OUTPUT_DIR  = os.environ.get("OUTPUT_DIR",   "/scans")
 LOG_LEVEL   = os.environ.get("LOG_LEVEL",    "INFO")
 TLS_CERT    = os.environ.get("TLS_CERT",     "/certs/scan-collector.crt")

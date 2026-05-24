@@ -9,11 +9,5 @@ services:
     volumes:
       - ./scans:/scans:Z
       - ./certs:/certs:Z,ro
-    environment:
-      SMTP_PORT: 8025
-      OUTPUT_DIR: /scans
-      LOG_LEVEL: INFO
-      TLS_CERT: /certs/scan-collector.crt
-      TLS_KEY: /certs/scan-collector.key
     security_opt:
       - no-new-privileges:true
