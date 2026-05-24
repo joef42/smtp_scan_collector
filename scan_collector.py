@@ -14,6 +14,7 @@ from datetime import datetime
 
 from aiosmtpd.controller import Controller
 from aiosmtpd.handlers import AsyncMessage
+from aiosmtpd.smtp import AuthResult, LoginPassword
 
 # ── Configuration (override via environment variables) ────────────────────────
 HOST        = os.environ.get("SMTP_HOST",    "0.0.0.0")
@@ -22,6 +23,8 @@ OUTPUT_DIR  = os.environ.get("OUTPUT_DIR",   "/scans")
 LOG_LEVEL   = os.environ.get("LOG_LEVEL",    "INFO")
 TLS_CERT    = os.environ.get("TLS_CERT",     "/certs/scan-collector.crt")
 TLS_KEY     = os.environ.get("TLS_KEY",      "/certs/scan-collector.key")
+SMTP_USER   = os.environ["SMTP_USER"]
+SMTP_PASS   = os.environ["SMTP_PASS"]
 # ─────────────────────────────────────────────────────────────────────────────
 
 logging.basicConfig(
@@ -34,6 +37,15 @@ log = logging.getLogger("scan-collector")
 def _write_file(path: str, data: bytes) -> None:
     with open(path, "wb") as f:
         f.write(data)
+
+
+def authenticate(server, session, envelope, mechanism, auth_data) -> AuthResult:
+    if not isinstance(auth_data, LoginPassword):
+        return AuthResult(success=False, handled=False)
+    if auth_data.login.decode() == SMTP_USER and auth_data.password.decode() == SMTP_PASS:
+        return AuthResult(success=True)
+    log.warning("Auth failure for user %r", auth_data.login.decode(errors="replace"))
+    return AuthResult(success=False, handled=False)
 
 
 class ScanHandler(AsyncMessage):
@@ -86,6 +98,9 @@ def main() -> None:
         hostname=HOST,
         port=PORT,
         ssl_context=ssl_ctx,
+        authenticator=authenticate,
+        auth_required=True,
+        auth_require_tls=False,  # we use implicit TLS; whole session is already encrypted
     )
     controller.start()
 

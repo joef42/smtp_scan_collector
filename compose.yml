@@ -9,5 +9,8 @@ services:
     volumes:
       - ./scans:/scans:Z
       - ./certs:/certs:Z,ro
+    environment:
+      SMTP_USER: ${SMTP_USER:?set SMTP_USER in .env}
+      SMTP_PASS: ${SMTP_PASS:?set SMTP_PASS in .env}
     security_opt:
       - no-new-privileges:true
