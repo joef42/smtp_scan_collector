@@ -13,18 +13,19 @@ import ssl
 import warnings
 from datetime import datetime
 
-# aiosmtpd checks for STARTTLS, not implicit TLS, so it warns when we combine
-# auth_required with auth_require_tls=False. Our connection is encrypted from
-# byte 0 via ssl_context, so AUTH is not exposed in plaintext.
+from aiosmtpd.controller import Controller
+from aiosmtpd.handlers import AsyncMessage
+from aiosmtpd.smtp import AuthResult, LoginPassword
+
+# aiosmtpd's TLS detection only recognizes STARTTLS, not implicit TLS, so it
+# emits a UserWarning at startup and a logger warning per connection when we
+# combine auth_required with auth_require_tls=False. The session is in fact
+# encrypted from byte 0 via ssl_context, so AUTH is not exposed in plaintext.
 warnings.filterwarnings(
     "ignore",
     message="Requiring AUTH while not requiring TLS.*",
     category=UserWarning,
 )
-
-from aiosmtpd.controller import Controller
-from aiosmtpd.handlers import AsyncMessage
-from aiosmtpd.smtp import AuthResult, LoginPassword
 
 # ── Configuration (override via environment variables) ────────────────────────
 HOST        = os.environ.get("SMTP_HOST",    "0.0.0.0")
@@ -110,7 +111,7 @@ def main() -> None:
         ssl_context=ssl_ctx,
         authenticator=authenticate,
         auth_required=True,
-        auth_require_tls=False,  # we use implicit TLS; whole session is already encrypted
+        auth_require_tls=False,  # implicit TLS; whole session is already encrypted
     )
     controller.start()
 
