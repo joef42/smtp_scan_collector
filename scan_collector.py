@@ -10,7 +10,17 @@ import email
 import logging
 import os
 import ssl
+import warnings
 from datetime import datetime
+
+# aiosmtpd checks for STARTTLS, not implicit TLS, so it warns when we combine
+# auth_required with auth_require_tls=False. Our connection is encrypted from
+# byte 0 via ssl_context, so AUTH is not exposed in plaintext.
+warnings.filterwarnings(
+    "ignore",
+    message="Requiring AUTH while not requiring TLS.*",
+    category=UserWarning,
+)
 
 from aiosmtpd.controller import Controller
 from aiosmtpd.handlers import AsyncMessage
