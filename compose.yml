@@ -1,0 +1,15 @@
+services:
+  scan-collector:
+    build: .
+    container_name: scan-collector
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+    volumes:
+      - ./scans:/scans:Z
+    environment:
+      SMTP_PORT: 8025
+      OUTPUT_DIR: /scans
+      LOG_LEVEL: INFO
+    security_opt:
+      - no-new-privileges:true

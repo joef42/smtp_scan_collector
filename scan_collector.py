@@ -1,0 +1,94 @@
+"""
+scan_collector.py
+A minimal SMTP server that accepts incoming emails and saves any attachments
+to a configurable output directory. Designed for use with network scanners
+(e.g. Brother ADS-1700W) that support "Scan to E-mail Server".
+"""
+
+import asyncio
+import email
+import logging
+import os
+from datetime import datetime
+
+from aiosmtpd.controller import Controller
+from aiosmtpd.handlers import AsyncMessage
+
+# ── Configuration (override via environment variables) ────────────────────────
+HOST        = os.environ.get("SMTP_HOST",    "0.0.0.0")
+PORT        = int(os.environ.get("SMTP_PORT", 25))
+OUTPUT_DIR  = os.environ.get("OUTPUT_DIR",   "/scans")
+LOG_LEVEL   = os.environ.get("LOG_LEVEL",    "INFO")
+# ─────────────────────────────────────────────────────────────────────────────
+
+logging.basicConfig(
+    level=LOG_LEVEL,
+    format="%(asctime)s  %(levelname)-8s  %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger("scan-collector")
+
+def _write_file(path: str, data: bytes) -> None:
+    with open(path, "wb") as f:
+        f.write(data)
+
+
+class ScanHandler(AsyncMessage):
+    """Save every attachment that arrives in any email."""
+
+    async def handle_message(self, message: email.message.Message) -> None:
+        sender  = message.get("From", "unknown")
+        subject = message.get("Subject", "(no subject)")
+        log.info("Mail from %s — %s", sender, subject)
+
+        saved = 0
+        for part in message.walk():
+            filename = part.get_filename()
+            if not filename:
+                continue  # skip non-attachment parts
+
+            payload = part.get_payload(decode=True)
+            if payload is None:
+                continue
+
+            ext = os.path.splitext(filename)[1]
+            date_prefix = datetime.now().strftime("%Y_%m_%d")
+            counter = 0
+            while True:
+                safe_name = f"{date_prefix} {counter:04d}{ext}"
+                dest = os.path.join(OUTPUT_DIR, safe_name)
+                if not os.path.exists(dest):
+                    break
+                counter += 1
+
+            await asyncio.to_thread(_write_file, dest, payload)
+
+            log.info("  Saved attachment → %s (%d bytes)", safe_name, len(payload))
+            saved += 1
+
+        if saved == 0:
+            log.warning("  No attachments found in message from %s", sender)
+
+
+def main() -> None:
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    log.info("Scan collector starting — listening on %s:%d", HOST, PORT)
+    log.info("Saving attachments to %s", OUTPUT_DIR)
+
+    controller = Controller(
+        ScanHandler(message_class=email.message.EmailMessage),
+        hostname=HOST,
+        port=PORT,
+    )
+    controller.start()
+
+    try:
+        asyncio.get_event_loop().run_forever()
+    except KeyboardInterrupt:
+        log.info("Shutting down.")
+    finally:
+        controller.stop()
+
+
+if __name__ == "__main__":
+    main()
