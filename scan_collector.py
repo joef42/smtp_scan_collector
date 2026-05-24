@@ -9,6 +9,7 @@ import asyncio
 import email
 import logging
 import os
+import ssl
 from datetime import datetime
 
 from aiosmtpd.controller import Controller
@@ -16,9 +17,11 @@ from aiosmtpd.handlers import AsyncMessage
 
 # ── Configuration (override via environment variables) ────────────────────────
 HOST        = os.environ.get("SMTP_HOST",    "0.0.0.0")
-PORT        = int(os.environ.get("SMTP_PORT", 25))
+PORT        = int(os.environ.get("SMTP_PORT", 465))
 OUTPUT_DIR  = os.environ.get("OUTPUT_DIR",   "/scans")
 LOG_LEVEL   = os.environ.get("LOG_LEVEL",    "INFO")
+TLS_CERT    = os.environ.get("TLS_CERT",     "/certs/scan-collector.crt")
+TLS_KEY     = os.environ.get("TLS_KEY",      "/certs/scan-collector.key")
 # ─────────────────────────────────────────────────────────────────────────────
 
 logging.basicConfig(
@@ -72,13 +75,17 @@ class ScanHandler(AsyncMessage):
 
 def main() -> None:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    log.info("Scan collector starting — listening on %s:%d", HOST, PORT)
+    log.info("Scan collector starting — listening on %s:%d (implicit TLS)", HOST, PORT)
     log.info("Saving attachments to %s", OUTPUT_DIR)
+
+    ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_ctx.load_cert_chain(TLS_CERT, TLS_KEY)
 
     controller = Controller(
         ScanHandler(message_class=email.message.EmailMessage),
         hostname=HOST,
         port=PORT,
+        ssl_context=ssl_ctx,
     )
     controller.start()
 

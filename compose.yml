@@ -3,13 +3,17 @@ services:
     build: .
     container_name: scan-collector
     restart: unless-stopped
+    userns_mode: "keep-id:uid=1000,gid=1000"
     ports:
       - "8025:8025"
     volumes:
       - ./scans:/scans:Z
+      - ./certs:/certs:Z,ro
     environment:
       SMTP_PORT: 8025
       OUTPUT_DIR: /scans
       LOG_LEVEL: INFO
+      TLS_CERT: /certs/scan-collector.crt
+      TLS_KEY: /certs/scan-collector.key
     security_opt:
       - no-new-privileges:true
