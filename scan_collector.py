@@ -9,6 +9,7 @@ import asyncio
 import email
 import logging
 import os
+import re
 import ssl
 import warnings
 from datetime import datetime
@@ -45,9 +46,21 @@ logging.basicConfig(
 )
 log = logging.getLogger("scan-collector")
 
+_SAFE_USER = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
 def _write_file(path: str, data: bytes) -> None:
     with open(path, "wb") as f:
         f.write(data)
+
+
+def _target_dir_for(rcpt_to_header: str) -> str:
+    # X-RcptTo is a comma-joined list; take the first recipient's local-part.
+    first = rcpt_to_header.split(",", 1)[0].strip()
+    local = first.split("@", 1)[0]
+    if not local or local == "default" or not _SAFE_USER.match(local):
+        return OUTPUT_DIR
+    return os.path.join(OUTPUT_DIR, local)
 
 
 def authenticate(server, session, envelope, mechanism, auth_data) -> AuthResult:
@@ -67,6 +80,9 @@ class ScanHandler(AsyncMessage):
         subject = message.get("Subject", "(no subject)")
         log.info("Mail from %s — %s", sender, subject)
 
+        target_dir = _target_dir_for(message.get("X-RcptTo", ""))
+        os.makedirs(target_dir, exist_ok=True)
+
         saved = 0
         for part in message.walk():
             filename = part.get_filename()
@@ -82,7 +98,7 @@ class ScanHandler(AsyncMessage):
             counter = 0
             while True:
                 safe_name = f"{date_prefix} {counter:04d}{ext}"
-                dest = os.path.join(OUTPUT_DIR, safe_name)
+                dest = os.path.join(target_dir, safe_name)
                 if not os.path.exists(dest):
                     break
                 counter += 1
