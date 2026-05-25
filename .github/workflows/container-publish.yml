@@ -1,0 +1,13 @@
+name: Docker
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  call:
+    permissions:
+      contents: read
+      packages: write
+    uses: joef42/github-workflows/.github/workflows/publish-python-image.yaml@main
