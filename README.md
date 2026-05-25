@@ -22,8 +22,8 @@ no IMAP, no Postfix — just files on disk.
 ## Quick start
 
 ```bash
-git clone https://github.com/joef42/scan-collector
-cd scan-collector
+git clone https://github.com/joef42/smtp_scan_collector
+cd smtp_scan_collector
 
 # 1. Generate a self-signed cert + key
 mkdir -p certs

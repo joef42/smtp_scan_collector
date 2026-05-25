@@ -1,7 +1,6 @@
 services:
   scan-collector:
-    build: .
-    container_name: scan-collector
+    image: ghcr.io/joef42/smtp_scan_collector:latest
     restart: unless-stopped
     userns_mode: "keep-id:uid=1000,gid=1000"
     ports:
